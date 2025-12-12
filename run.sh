@@ -43,7 +43,12 @@ mkdir -p "${OUTPUT_DIR}/final"
 echo "Running frame generator (preview flag = ${PREVIEW_FLAG})..."
 # export config variables so Python can read them via environment
 # (generate_frames.py reads these env vars)
-export $(cut -d= -f1 config.sh | grep -v '^#' | tr '\n' ' ')
+# We already sourced config.sh above, so export any simple UPPERCASE
+# variable assignments found in config.sh so child processes inherit them.
+VARS=$(grep -E '^[A-Z_][A-Z0-9_]*=' "${REPO_ROOT}/config.sh" | sed -E 's/=.*//' | tr '\n' ' ')
+if [ -n "${VARS}" ]; then
+  export ${VARS}
+fi
 
 "${PYTHON_BIN}" "${REPO_ROOT}/src/generate_frames.py" ${PREVIEW_FLAG}
 

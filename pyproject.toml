@@ -1,0 +1,15 @@
+[project]
+name = "image-drift-generator"
+version = "0.1.0"
+description = "Generate drifting image animations and encode to WebM (VP9 with alpha)"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+  "Pillow>=9.0.0",
+  "numpy>=1.21.0",
+  "OpenSimplex==0.3",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
