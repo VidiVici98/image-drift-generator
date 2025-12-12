@@ -16,8 +16,15 @@ from PIL import Image, ImageDraw
 import numpy as np
 from opensimplex import OpenSimplex
 
-from .logging_config import setup_logger
-from .errors import ConfigError, GenerationError
+try:
+    # preferred when the package is installed or imported as a package
+    from .logging_config import setup_logger
+    from .errors import ConfigError, GenerationError
+except Exception:
+    # fallback when running the script directly (python src/generate_frames.py)
+    from logging_config import setup_logger
+    from errors import ConfigError, GenerationError
+
 
 logger = setup_logger(__name__)
 

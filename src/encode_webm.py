@@ -12,8 +12,15 @@ import shutil
 import subprocess
 import sys
 
-from .logging_config import setup_logger
-from .errors import EncoderError
+try:
+    # package import when installed or run as package
+    from .logging_config import setup_logger
+    from .errors import EncoderError
+except Exception:
+    # fallback to direct script execution
+    from logging_config import setup_logger
+    from errors import EncoderError
+
 
 logger = setup_logger(__name__)
 

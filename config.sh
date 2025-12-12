@@ -1,7 +1,7 @@
 # config.sh -- edit these values
 
 # INPUT IMAGE (must support alpha if you want transparent output)
-INPUT_IMAGE="input/logo-skull-test-1.webp"
+INPUT_IMAGE="input/spartan-helmet-test-1-back.webp"
 
 # OUTPUT layout
 OUTPUT_DIR="output"             # base output directory
