@@ -12,6 +12,11 @@ import shutil
 import subprocess
 import sys
 
+from .logging_config import setup_logger
+from .errors import EncoderError
+
+logger = setup_logger(__name__)
+
 def env(name, default=None):
     v = os.environ.get(name, None)
     if v is None:
@@ -47,23 +52,40 @@ def run_ffmpeg(pattern, outpath):
         "-auto-alt-ref", "0",
         outpath
     ]
-    print("Running ffmpeg:")
-    print(" ".join(cmd))
+    logger.info("Running ffmpeg: %s", " ".join(cmd))
     # run inside FRAMES_DIR
-    proc = subprocess.run(cmd, cwd=FRAMES_DIR)
+    try:
+        proc = subprocess.run(cmd, cwd=FRAMES_DIR)
+    except Exception as e:
+        logger.exception("Failed to start ffmpeg process")
+        raise EncoderError("ffmpeg start failed") from e
     if proc.returncode != 0:
-        raise RuntimeError("ffmpeg failed with exit code: " + str(proc.returncode))
-    print("Encoding finished. Output:", outpath)
+        logger.error("ffmpeg failed with exit code: %s", proc.returncode)
+        raise EncoderError(f"ffmpeg failed with exit code: {proc.returncode}")
+    logger.info("Encoding finished. Output: %s", outpath)
+
+def main(argv=None):
+    try:
+        if not os.path.isdir(FRAMES_DIR):
+            logger.error("Frames directory not found: %s", FRAMES_DIR)
+            raise EncoderError("frames directory missing")
+        pattern, outpath = build_pattern_and_out()
+        if ffmpeg_exists():
+            run_ffmpeg(pattern, outpath)
+        else:
+            logger.warning("ffmpeg not found on PATH. Printing command to run elsewhere.")
+            print()
+            print("cd", FRAMES_DIR)
+            print(f"{FFMPEG_BIN} -framerate {FPS} -i {pattern} -c:v libvpx-vp9 -pix_fmt yuva420p -auto-alt-ref 0 {outpath}")
+            print()
+        return 0
+    except EncoderError as e:
+        logger.error("Encoding failed: %s", e)
+        return 2
+    except Exception:
+        logger.exception("Unexpected error in encoder")
+        return 1
+
 
 if __name__ == "__main__":
-    if not os.path.isdir(FRAMES_DIR):
-        raise FileNotFoundError("Frames directory not found: " + FRAMES_DIR)
-    pattern, outpath = build_pattern_and_out()
-    if ffmpeg_exists():
-        run_ffmpeg(pattern, outpath)
-    else:
-        print("ffmpeg not found on PATH. Copy/paste the following command on a machine with ffmpeg:")
-        print()
-        print("cd", FRAMES_DIR)
-        print(f"{FFMPEG_BIN} -framerate {FPS} -i {pattern} -c:v libvpx-vp9 -pix_fmt yuva420p -auto-alt-ref 0 {outpath}")
-        print()
+    raise SystemExit(main())

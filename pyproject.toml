@@ -4,12 +4,35 @@ version = "0.1.0"
 description = "Generate drifting image animations and encode to WebM (VP9 with alpha)"
 readme = "README.md"
 requires-python = ">=3.8"
+authors = [ { name = "VidiVici98" } ]
+license = { file = "LICENSE" }
+keywords = ["animation", "webm", "vp9", "image", "generator"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+]
+
 dependencies = [
   "Pillow>=9.0.0",
   "numpy>=1.21.0",
   "OpenSimplex==0.3",
 ]
 
+[project.urls]
+"Homepage" = "https://github.com/VidiVici98/image-drift-generator"
+"Repository" = "https://github.com/VidiVici98/image-drift-generator"
+
+[project.scripts]
+"image-drift-generate" = "src.generate_frames:main"
+"image-drift-encode" = "src.encode_webm:main"
+
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

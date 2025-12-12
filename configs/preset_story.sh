@@ -1,0 +1,15 @@
+# Preset: Instagram story / short loop (9:16)
+INPUT_IMAGE="input/logo-skull-test-1.webp"
+OUTPUT_DIR="output"
+BASENAME="insta_story"
+OUT_W=1080
+OUT_H=1920
+DURATION_SECONDS=4
+FPS=30
+TARGET_PIXEL_WIDTH=620
+MOTION_MODE="sine"
+AMP_X=40
+AMP_Y=30
+SINE_CYCLES_X=1.2
+SINE_CYCLES_Y=0.8
+NOISE_SEED=""

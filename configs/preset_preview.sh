@@ -1,0 +1,14 @@
+# Preset: Quick preview (fast, low-res)
+INPUT_IMAGE="input/logo-skull-test-1.webp"
+OUTPUT_DIR="output"
+BASENAME="preview"
+OUT_W=480
+OUT_H=854
+DURATION_SECONDS=1
+FPS=2
+TARGET_PIXEL_WIDTH=200
+MOTION_MODE="perlin"
+AMP_X=8
+AMP_Y=6
+NOISE_TIMESCALE_SECONDS=4
+NOISE_SEED="1234"

@@ -16,6 +16,11 @@ from PIL import Image, ImageDraw
 import numpy as np
 from opensimplex import OpenSimplex
 
+from .logging_config import setup_logger
+from .errors import ConfigError, GenerationError
+
+logger = setup_logger(__name__)
+
 # Helper: read env variables with defaults
 def env(name, default=None):
     v = os.environ.get(name, None)
@@ -64,7 +69,8 @@ if TARGET_PIXEL_WIDTH != "":
 
 # Utility
 def verbose_print(*a, **k):
-    print(*a, **k)
+    # keep backward-compatible wrapper; route to logger.info
+    logger.info("%s", " ".join(str(x) for x in a))
 
 def ensure_dirs():
     os.makedirs(FRAMES_DIR, exist_ok=True)
@@ -72,7 +78,7 @@ def ensure_dirs():
 
 def load_and_scale_image():
     if not os.path.isfile(INPUT_IMAGE):
-        raise FileNotFoundError("Input image not found: " + INPUT_IMAGE)
+        raise ConfigError("Input image not found: " + INPUT_IMAGE)
     img = Image.open(INPUT_IMAGE).convert("RGBA")
     w0, h0 = img.size
     if TARGET_PIXEL_WIDTH:
@@ -144,25 +150,33 @@ def sine_offsets(t_seconds, duration, amp_x, amp_y, cycles_x, cycles_y):
     return dx, dy
 
 def generate_frames(preview_only=False):
-    ensure_dirs()
-    img = load_and_scale_image()
+    try:
+        ensure_dirs()
+        img = load_and_scale_image()
+    except Exception as e:
+        logger.exception("Failed preparing generation environment")
+        raise GenerationError("setup failed") from e
     img_w, img_h = img.size
     base_x, base_y = compute_base_position(img_w, img_h)
-    verbose_print(f"Canvas: {OUT_W}x{OUT_H}; image: {img_w}x{img_h}; base pos: ({base_x},{base_y})")
+    logger.info("Canvas: %dx%d; image: %dx%d; base pos: (%d,%d)", OUT_W, OUT_H, img_w, img_h, base_x, base_y)
     preview_path = os.path.join(OUTPUT_DIR, f"{BASENAME}_preview.png")
-    build_preview(OUT_W, OUT_H, img, (base_x, base_y), preview_path)
+    try:
+        build_preview(OUT_W, OUT_H, img, (base_x, base_y), preview_path)
+    except Exception as e:
+        logger.exception("Failed building preview")
+        raise GenerationError("preview failed") from e
     if preview_only:
-        verbose_print("Preview only requested; exiting.")
+        logger.info("Preview only requested; exiting.")
         return
 
     # prepare noise
     noise_gen, used_seed = make_noise(NOISE_SEED)
-    verbose_print("Using noise seed:", used_seed)
+    logger.info("Using noise seed: %s", used_seed)
 
     pad = zero_pad_width(TOTAL_FRAMES)
     fname_template = f"{BASENAME}_{{:0{pad}d}}.png"
 
-    verbose_print("Generating frames:", TOTAL_FRAMES)
+    logger.info("Generating frames: %d", TOTAL_FRAMES)
     for i in range(TOTAL_FRAMES):
         t_seconds = i * (DURATION_SECONDS / max(1, TOTAL_FRAMES))
         if MOTION_MODE == "perlin":
@@ -179,12 +193,27 @@ def generate_frames(preview_only=False):
         outpath = os.path.join(FRAMES_DIR, outname)
         canvas.save(outpath)
         if idx % 100 == 0 or idx == TOTAL_FRAMES:
-            verbose_print(f"  wrote {idx}/{TOTAL_FRAMES}")
+            logger.info("wrote %d/%d", idx, TOTAL_FRAMES)
 
-    verbose_print("Frame generation complete. Frames saved to:", FRAMES_DIR)
+    logger.info("Frame generation complete. Frames saved to: %s", FRAMES_DIR)
+
+
+def main(argv=None):
+    argv = argv or sys.argv[1:]
+    preview_flag = False
+    if len(argv) > 0 and argv[0] == "--preview":
+        preview_flag = True
+    try:
+        generate_frames(preview_only=preview_flag)
+    except ConfigError as e:
+        logger.error("Configuration error: %s", e)
+        sys.exit(2)
+    except GenerationError as e:
+        logger.error("Generation error: %s", e)
+        sys.exit(3)
+    except Exception as e:
+        logger.exception("Unexpected error during frame generation")
+        sys.exit(1)
 
 if __name__ == "__main__":
-    preview_flag = False
-    if len(sys.argv) > 1 and sys.argv[1] == "--preview":
-        preview_flag = True
-    generate_frames(preview_only=preview_flag)
+    main()

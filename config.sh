@@ -42,7 +42,7 @@ AMP_Y=50       # vertical amplitude (px)
 NOISE_TIMESCALE_SECONDS=8
 
 # NOISE seed: empty => random per run; set integer for reproducible runs
-NOISE_SEED=""
+NOISE_SEED="12345"
 
 # SINE params (if MOTION_MODE == "sine")
 SINE_CYCLES_X=0.6
