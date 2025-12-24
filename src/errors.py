@@ -1,3 +1,6 @@
+"""Custom exceptions for image-drift-generator."""
+
+
 class ImageDriftError(Exception):
     """Base exception for image-drift-generator."""
 

@@ -1,9 +1,17 @@
 import logging
 import os
+from typing import Optional
 
 
-def setup_logger(name=__name__, level_env="LOG_LEVEL"):
+def setup_logger(name: str = __name__, level_env: str = "LOG_LEVEL") -> logging.Logger:
     """Create and return a configured logger.
+
+    Args:
+        name: Logger name.
+        level_env: Environment variable name for log level (defaults to LOG_LEVEL).
+        
+    Returns:
+        Configured Logger instance.
 
     - Reads `LOG_LEVEL` from environment (defaults to INFO).
     - Outputs to stdout with a compact formatter including level and name.

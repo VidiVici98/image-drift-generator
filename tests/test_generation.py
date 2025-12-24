@@ -11,10 +11,11 @@ if ROOT not in sys.path:
 
 from src import generate_frames as gf
 from src import encode_webm as ew
-from src.errors import ConfigError
+from src.errors import ConfigError, GenerationError, EncoderError
 
 
-def make_sample_image(path, size=(40, 24), color=(255, 0, 0, 255)):
+def make_sample_image(path: str, size: tuple = (40, 24), color: tuple = (255, 0, 0, 255)) -> None:
+    """Create a sample test image."""
     from PIL import Image
 
     img = Image.new("RGBA", size, color)
@@ -86,5 +87,148 @@ def test_encode_run_ffmpeg_raises_encodererror_for_missing_dir(tmp_path, monkeyp
     nonexist = tmp_path / "nope"
     monkeypatch.setattr(ew, "FRAMES_DIR", str(nonexist))
     # pattern/out are irrelevant since cwd doesn't exist; should raise EncoderError
-    with pytest.raises(ew.EncoderError):
+    with pytest.raises(EncoderError):
         ew.run_ffmpeg("pattern.png", str(tmp_path / "out.webm"))
+
+
+# Additional comprehensive tests
+class TestConfigValidation:
+    """Test config validation."""
+
+    def test_validate_config_empty_input_image(self, monkeypatch):
+        """Test validation fails with empty INPUT_IMAGE."""
+        monkeypatch.setattr(gf, "INPUT_IMAGE", "")
+        with pytest.raises(ConfigError, match="INPUT_IMAGE"):
+            gf.validate_config()
+
+    def test_validate_config_negative_dimensions(self, monkeypatch):
+        """Test validation fails with negative canvas dimensions."""
+        monkeypatch.setattr(gf, "INPUT_IMAGE", "valid.png")
+        monkeypatch.setattr(gf, "OUT_W", -100)
+        with pytest.raises(ConfigError, match="OUT_W"):
+            gf.validate_config()
+
+    def test_validate_config_zero_fps(self, monkeypatch):
+        """Test validation fails with zero FPS."""
+        monkeypatch.setattr(gf, "INPUT_IMAGE", "valid.png")
+        monkeypatch.setattr(gf, "OUT_W", 1080)
+        monkeypatch.setattr(gf, "OUT_H", 1920)
+        monkeypatch.setattr(gf, "DURATION_SECONDS", 30.0)
+        monkeypatch.setattr(gf, "FPS", 0)
+        with pytest.raises(ConfigError, match="FPS"):
+            gf.validate_config()
+
+    def test_validate_config_invalid_motion_mode(self, monkeypatch):
+        """Test validation fails with invalid motion mode."""
+        monkeypatch.setattr(gf, "INPUT_IMAGE", "valid.png")
+        monkeypatch.setattr(gf, "OUT_W", 1080)
+        monkeypatch.setattr(gf, "OUT_H", 1920)
+        monkeypatch.setattr(gf, "DURATION_SECONDS", 30.0)
+        monkeypatch.setattr(gf, "FPS", 30)
+        monkeypatch.setattr(gf, "TOTAL_FRAMES", 900)
+        monkeypatch.setattr(gf, "SCALE", 0.5)
+        monkeypatch.setattr(gf, "MOTION_MODE", "invalid")
+        with pytest.raises(ConfigError, match="MOTION_MODE"):
+            gf.validate_config()
+
+    def test_validate_config_invalid_base_pos_mode(self, monkeypatch):
+        """Test validation fails with invalid base position mode."""
+        monkeypatch.setattr(gf, "INPUT_IMAGE", "valid.png")
+        monkeypatch.setattr(gf, "OUT_W", 1080)
+        monkeypatch.setattr(gf, "OUT_H", 1920)
+        monkeypatch.setattr(gf, "DURATION_SECONDS", 30.0)
+        monkeypatch.setattr(gf, "FPS", 30)
+        monkeypatch.setattr(gf, "TOTAL_FRAMES", 900)
+        monkeypatch.setattr(gf, "SCALE", 0.5)
+        monkeypatch.setattr(gf, "MOTION_MODE", "sine")
+        monkeypatch.setattr(gf, "BASE_POS_MODE", "invalid")
+        with pytest.raises(ConfigError, match="BASE_POS_MODE"):
+            gf.validate_config()
+
+    def test_validate_config_passes_with_valid_config(self, monkeypatch, tmp_path):
+        """Test validation passes with valid configuration."""
+        inp = tmp_path / "in.png"
+        make_sample_image(str(inp))
+        
+        monkeypatch.setattr(gf, "INPUT_IMAGE", str(inp))
+        monkeypatch.setattr(gf, "OUT_W", 1080)
+        monkeypatch.setattr(gf, "OUT_H", 1920)
+        monkeypatch.setattr(gf, "DURATION_SECONDS", 30.0)
+        monkeypatch.setattr(gf, "FPS", 30)
+        monkeypatch.setattr(gf, "TOTAL_FRAMES", 900)
+        monkeypatch.setattr(gf, "SCALE", 0.5)
+        monkeypatch.setattr(gf, "MOTION_MODE", "perlin")
+        monkeypatch.setattr(gf, "BASE_POS_MODE", "center")
+        
+        # Should not raise
+        gf.validate_config()
+
+
+class TestMotionCalculations:
+    """Test motion offset calculations."""
+
+    def test_perlin_like_offsets_returns_tuple(self, monkeypatch):
+        """Test that perlin offsets return a float tuple."""
+        from opensimplex import OpenSimplex
+        gen = OpenSimplex(42)
+        dx, dy = gf.perlin_like_offsets(gen, 1.0, 10.0, 5.0, 8.0)
+        assert isinstance(dx, float)
+        assert isinstance(dy, float)
+
+    def test_sine_offsets_returns_tuple(self):
+        """Test that sine offsets return a float tuple."""
+        dx, dy = gf.sine_offsets(0.5, 10.0, 50.0, 75.0, 1.0, 1.0)
+        assert isinstance(dx, float)
+        assert isinstance(dy, float)
+
+    def test_sine_offsets_at_zero_time(self):
+        """Test sine offset at t=0."""
+        dx, dy = gf.sine_offsets(0.0, 10.0, 100.0, 100.0, 1.0, 1.0)
+        assert abs(dx) < 0.01  # Should be close to 0
+
+
+class TestEncoderFunctions:
+    """Test encoder utility functions."""
+
+    def test_zero_pad_width_single_digit(self):
+        """Test padding width for single digit frame count."""
+        pad = ew.zero_pad_width(5)
+        assert pad == 4
+
+    def test_zero_pad_width_large_number(self):
+        """Test padding width for large frame count."""
+        pad = ew.zero_pad_width(10000)
+        assert pad == 5
+
+    def test_build_pattern_and_out(self, monkeypatch, tmp_path):
+        """Test pattern and output path building."""
+        monkeypatch.setattr(ew, "TOTAL_FRAMES", 900)
+        monkeypatch.setattr(ew, "BASENAME", "test")
+        monkeypatch.setattr(ew, "FINAL_DIR", str(tmp_path))
+        
+        pattern, outpath = ew.build_pattern_and_out()
+        assert pattern == "test_%04d.png"
+        assert outpath.endswith(".webm")
+        assert "test.webm" in outpath
+
+    def test_ffmpeg_exists_returns_bool(self):
+        """Test that ffmpeg_exists returns a boolean."""
+        result = ew.ffmpeg_exists()
+        assert isinstance(result, bool)
+
+
+class TestPreviewGeneration:
+    """Test preview image generation."""
+
+    def test_build_preview_creates_file(self, tmp_path):
+        """Test that preview building creates a file."""
+        from PIL import Image
+        inp_img = Image.new("RGBA", (40, 24), (255, 0, 0, 255))
+        out_path = tmp_path / "preview.png"
+        
+        gf.build_preview(200, 100, inp_img, (50, 25), str(out_path))
+        
+        assert out_path.exists()
+        result_img = Image.open(out_path)
+        assert result_img.size == (200, 100)
+        assert result_img.mode == "RGBA"
