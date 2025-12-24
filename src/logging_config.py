@@ -1,15 +1,16 @@
 import logging
 import os
-from typing import Optional
 
 
-def setup_logger(name: str = __name__, level_env: str = "LOG_LEVEL") -> logging.Logger:
+def setup_logger(
+    name: str = __name__, level_env: str = "LOG_LEVEL"
+) -> logging.Logger:
     """Create and return a configured logger.
 
     Args:
         name: Logger name.
         level_env: Environment variable name for log level (defaults to LOG_LEVEL).
-        
+
     Returns:
         Configured Logger instance.
 
@@ -26,7 +27,10 @@ def setup_logger(name: str = __name__, level_env: str = "LOG_LEVEL") -> logging.
     if not logger.handlers:
         ch = logging.StreamHandler()
         ch.setLevel(level)
-        fmt = logging.Formatter("%(asctime)s %(levelname)-7s %(name)s: %(message)s", "%Y-%m-%d %H:%M:%S")
+        fmt = logging.Formatter(
+            "%(asctime)s %(levelname)-7s %(name)s: %(message)s",
+            "%Y-%m-%d %H:%M:%S",
+        )
         ch.setFormatter(fmt)
         logger.addHandler(ch)
 

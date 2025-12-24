@@ -8,13 +8,13 @@ Usage:
   python generate_frames.py --preview  # generate only preview image and exit
 """
 
-import os
-import sys
 import math
+import os
 import random
+import sys
 from typing import Optional, Tuple
+
 from PIL import Image, ImageDraw
-import numpy as np
 from opensimplex import OpenSimplex
 from tqdm import tqdm
 
@@ -30,13 +30,14 @@ except Exception:
 
 logger = setup_logger(__name__)
 
-# Helper: read env variables with defaults
+
 def env(name: str, default: Optional[str] = None) -> Optional[str]:
     """Read environment variable with optional default value."""
     v = os.environ.get(name, None)
     if v is None:
         return default
     return v
+
 
 # Load configuration from environment
 INPUT_IMAGE = env("INPUT_IMAGE", "input/image.png")
@@ -77,15 +78,15 @@ if TARGET_PIXEL_WIDTH is None:
 if TARGET_PIXEL_WIDTH != "":
     TARGET_PIXEL_WIDTH = int(TARGET_PIXEL_WIDTH)
 
-# Validation helper
+
 def validate_config() -> None:
     """Validate all configuration parameters.
-    
+
     Raises:
         ConfigError: If any configuration is invalid.
     """
     errors = []
-    
+
     if not INPUT_IMAGE:
         errors.append("INPUT_IMAGE not set")
     if OUT_W <= 0:
@@ -101,26 +102,36 @@ def validate_config() -> None:
     if SCALE <= 0:
         errors.append(f"SCALE must be positive (got {SCALE})")
     if TARGET_PIXEL_WIDTH and TARGET_PIXEL_WIDTH <= 0:
-        errors.append(f"TARGET_PIXEL_WIDTH must be positive (got {TARGET_PIXEL_WIDTH})")
+        msg = f"TARGET_PIXEL_WIDTH must be positive (got {TARGET_PIXEL_WIDTH})"
+        errors.append(msg)
     if MOTION_MODE not in ("perlin", "sine"):
-        errors.append(f"MOTION_MODE must be 'perlin' or 'sine' (got '{MOTION_MODE}')")
+        msg = f"MOTION_MODE must be 'perlin' or 'sine' (got '{MOTION_MODE}')"
+        errors.append(msg)
     if NOISE_TIMESCALE_SECONDS <= 0:
-        errors.append(f"NOISE_TIMESCALE_SECONDS must be positive (got {NOISE_TIMESCALE_SECONDS})")
+        msg = (
+            f"NOISE_TIMESCALE_SECONDS must be positive "
+            f"(got {NOISE_TIMESCALE_SECONDS})"
+        )
+        errors.append(msg)
     if SINE_CYCLES_X < 0:
-        errors.append(f"SINE_CYCLES_X must be non-negative (got {SINE_CYCLES_X})")
+        msg = f"SINE_CYCLES_X must be non-negative (got {SINE_CYCLES_X})"
+        errors.append(msg)
     if SINE_CYCLES_Y < 0:
-        errors.append(f"SINE_CYCLES_Y must be non-negative (got {SINE_CYCLES_Y})")
+        msg = f"SINE_CYCLES_Y must be non-negative (got {SINE_CYCLES_Y})"
+        errors.append(msg)
     if BASE_POS_MODE not in ("center", "coords"):
-        errors.append(f"BASE_POS_MODE must be 'center' or 'coords' (got '{BASE_POS_MODE}')")
-    
+        msg = f"BASE_POS_MODE must be 'center' or 'coords' (got '{BASE_POS_MODE}')"
+        errors.append(msg)
+
     if errors:
         error_msg = "\n".join(f"  - {e}" for e in errors)
         raise ConfigError(f"Configuration validation failed:\n{error_msg}")
 
-# Utility
+
 def verbose_print(*a: any, **k: any) -> None:
     """Log informational messages (backward-compatible wrapper)."""
     logger.info("%s", " ".join(str(x) for x in a))
+
 
 def ensure_dirs() -> None:
     """Create output directories if they don't exist."""
@@ -130,12 +141,13 @@ def ensure_dirs() -> None:
     except OSError as e:
         raise GenerationError(f"Failed to create output directories: {e}") from e
 
+
 def load_and_scale_image() -> Image.Image:
     """Load and scale the input image.
-    
+
     Returns:
         Pillow Image object in RGBA mode.
-        
+
     Raises:
         ConfigError: If input image not found or unsupported format.
         GenerationError: If image loading fails.
@@ -146,7 +158,7 @@ def load_and_scale_image() -> Image.Image:
         img = Image.open(INPUT_IMAGE).convert("RGBA")
     except Exception as e:
         raise ConfigError(f"Failed to load image {INPUT_IMAGE}: {e}") from e
-    
+
     w0, h0 = img.size
     if TARGET_PIXEL_WIDTH:
         target_w = int(TARGET_PIXEL_WIDTH)
@@ -159,13 +171,14 @@ def load_and_scale_image() -> Image.Image:
         img = img.resize((target_w, target_h), resample=Image.LANCZOS)
     return img
 
+
 def compute_base_position(img_w: int, img_h: int) -> Tuple[int, int]:
     """Compute the base position for pasting the image on the canvas.
-    
+
     Args:
         img_w: Image width in pixels.
         img_h: Image height in pixels.
-        
+
     Returns:
         Tuple of (x, y) coordinates.
     """
@@ -176,14 +189,16 @@ def compute_base_position(img_w: int, img_h: int) -> Tuple[int, int]:
     else:
         return BASE_X, BASE_Y
 
+
 def zero_pad_width(total: int) -> int:
     """Calculate zero-padding width needed for frame numbering."""
     return max(4, len(str(int(total))))
 
-def build_preview(canvas_w: int, canvas_h: int, img: Image.Image, 
+
+def build_preview(canvas_w: int, canvas_h: int, img: Image.Image,
                   paste_xy: Tuple[int, int], outpath: str) -> None:
     """Build and save a preview image with checkerboard background.
-    
+
     Args:
         canvas_w: Canvas width in pixels.
         canvas_h: Canvas height in pixels.
@@ -207,13 +222,13 @@ def build_preview(canvas_w: int, canvas_h: int, img: Image.Image,
     preview.save(outpath)
     verbose_print("Preview written to:", outpath)
 
-# Noise generator using OpenSimplex
+
 def make_noise(seed: Optional[str] = None) -> Tuple[OpenSimplex, int]:
     """Create a noise generator with optional seeding.
-    
+
     Args:
         seed: Optional seed value as string or int. If None or empty, uses random seed.
-        
+
     Returns:
         Tuple of (OpenSimplex generator, used_seed_int).
     """
@@ -227,11 +242,12 @@ def make_noise(seed: Optional[str] = None) -> Tuple[OpenSimplex, int]:
     gen = OpenSimplex(seed_int)
     return gen, seed_int
 
-def perlin_like_offsets(gen: OpenSimplex, t_seconds: float, amp_x: float, amp_y: float, 
-                        timescale_seconds: float, seed_offset_x: float = 0.0, 
+
+def perlin_like_offsets(gen: OpenSimplex, t_seconds: float, amp_x: float, amp_y: float,
+                        timescale_seconds: float, seed_offset_x: float = 0.0,
                         seed_offset_y: float = 0.0) -> Tuple[float, float]:
     """Generate perlin-like noise offsets for motion.
-    
+
     Args:
         gen: OpenSimplex noise generator.
         t_seconds: Time in seconds.
@@ -240,7 +256,7 @@ def perlin_like_offsets(gen: OpenSimplex, t_seconds: float, amp_x: float, amp_y:
         timescale_seconds: Timescale for noise frequency.
         seed_offset_x: Seed offset for X coordinate.
         seed_offset_y: Seed offset for Y coordinate.
-        
+
     Returns:
         Tuple of (dx, dy) offset values in pixels.
     """
@@ -254,10 +270,11 @@ def perlin_like_offsets(gen: OpenSimplex, t_seconds: float, amp_x: float, amp_y:
     dy = ny * amp_y
     return dx, dy
 
-def sine_offsets(t_seconds: float, duration: float, amp_x: float, amp_y: float, 
+
+def sine_offsets(t_seconds: float, duration: float, amp_x: float, amp_y: float,
                  cycles_x: float, cycles_y: float) -> Tuple[float, float]:
     """Generate sine wave offsets for motion.
-    
+
     Args:
         t_seconds: Time in seconds.
         duration: Total duration in seconds.
@@ -265,7 +282,7 @@ def sine_offsets(t_seconds: float, duration: float, amp_x: float, amp_y: float,
         amp_y: Y amplitude in pixels.
         cycles_x: Number of cycles over duration for X.
         cycles_y: Number of cycles over duration for Y.
-        
+
     Returns:
         Tuple of (dx, dy) offset values in pixels.
     """
@@ -274,12 +291,13 @@ def sine_offsets(t_seconds: float, duration: float, amp_x: float, amp_y: float,
     dy = math.sin(2 * math.pi * (t_norm * cycles_y) + 1.7) * amp_y
     return dx, dy
 
+
 def generate_frames(preview_only: bool = False) -> None:
     """Generate animation frames.
-    
+
     Args:
         preview_only: If True, only generate preview and return.
-        
+
     Raises:
         GenerationError: If frame generation fails.
     """
@@ -288,7 +306,7 @@ def generate_frames(preview_only: bool = False) -> None:
         validate_config()
     except ConfigError:
         raise
-    
+
     try:
         ensure_dirs()
         img = load_and_scale_image()
@@ -297,7 +315,10 @@ def generate_frames(preview_only: bool = False) -> None:
         raise GenerationError("setup failed") from e
     img_w, img_h = img.size
     base_x, base_y = compute_base_position(img_w, img_h)
-    logger.info("Canvas: %dx%d; image: %dx%d; base pos: (%d,%d)", OUT_W, OUT_H, img_w, img_h, base_x, base_y)
+    logger.info(
+        "Canvas: %dx%d; image: %dx%d; base pos: (%d,%d)",
+        OUT_W, OUT_H, img_w, img_h, base_x, base_y,
+    )
     preview_path = os.path.join(OUTPUT_DIR, f"{BASENAME}_preview.png")
     try:
         build_preview(OUT_W, OUT_H, img, (base_x, base_y), preview_path)
@@ -320,12 +341,18 @@ def generate_frames(preview_only: bool = False) -> None:
         t_seconds = i * (DURATION_SECONDS / max(1, TOTAL_FRAMES))
         if MOTION_MODE == "perlin":
             # simple decorrelated offsets
-            dx, dy = perlin_like_offsets(noise_gen, t_seconds, AMP_X, AMP_Y, NOISE_TIMESCALE_SECONDS, seed_offset_x=0.0, seed_offset_y=100.0)
+            dx, dy = perlin_like_offsets(
+                noise_gen, t_seconds, AMP_X, AMP_Y,
+                NOISE_TIMESCALE_SECONDS, seed_offset_x=0.0, seed_offset_y=100.0,
+            )
         else:
-            dx, dy = sine_offsets(t_seconds, DURATION_SECONDS, AMP_X, AMP_Y, SINE_CYCLES_X, SINE_CYCLES_Y)
+            dx, dy = sine_offsets(
+                t_seconds, DURATION_SECONDS, AMP_X, AMP_Y, SINE_CYCLES_X,
+                SINE_CYCLES_Y,
+            )
         paste_x = int(round(base_x + dx))
         paste_y = int(round(base_y + dy))
-        canvas = Image.new("RGBA", (OUT_W, OUT_H), (0,0,0,0))
+        canvas = Image.new("RGBA", (OUT_W, OUT_H), (0, 0, 0, 0))
         canvas.paste(img, (paste_x, paste_y), img)
         idx = i + 1
         outname = fname_template.format(idx)
@@ -337,7 +364,7 @@ def generate_frames(preview_only: bool = False) -> None:
 
 def main(argv: Optional[list] = None) -> None:
     """Main entry point.
-    
+
     Args:
         argv: Command-line arguments (optional).
     """
@@ -353,7 +380,7 @@ def main(argv: Optional[list] = None) -> None:
     except GenerationError as e:
         logger.error("Generation error: %s", e)
         sys.exit(3)
-    except Exception as e:
+    except Exception:
         logger.exception("Unexpected error during frame generation")
         sys.exit(1)
 

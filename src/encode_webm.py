@@ -10,8 +10,7 @@ If ffmpeg not found, prints the exact ffmpeg command to run elsewhere.
 import os
 import shutil
 import subprocess
-import sys
-from typing import Optional, Tuple, List
+from typing import List, Optional, Tuple
 
 try:
     # package import when installed or run as package
@@ -39,13 +38,15 @@ FPS = int(env("FPS", 30))
 TOTAL_FRAMES = int(env("TOTAL_FRAMES", 30*30))
 FFMPEG_BIN = env("FFMPEG_BIN", "ffmpeg")
 
+
 def zero_pad_width(total: int) -> int:
     """Calculate zero-padding width needed for frame numbering."""
     return max(4, len(str(int(total))))
 
+
 def build_pattern_and_out() -> Tuple[str, str]:
     """Build the ffmpeg input pattern and output path.
-    
+
     Returns:
         Tuple of (input_pattern, output_path).
     """
@@ -54,17 +55,19 @@ def build_pattern_and_out() -> Tuple[str, str]:
     outpath = os.path.join(FINAL_DIR, f"{BASENAME}.webm")
     return pattern, outpath
 
+
 def ffmpeg_exists() -> bool:
     """Check if ffmpeg is available on the system."""
     return shutil.which(FFMPEG_BIN) is not None
 
+
 def run_ffmpeg(pattern: str, outpath: str) -> None:
     """Run ffmpeg to encode PNG sequence to WebM.
-    
+
     Args:
         pattern: Input file pattern for ffmpeg.
         outpath: Output WebM file path.
-        
+
     Raises:
         EncoderError: If ffmpeg execution fails.
     """
@@ -86,15 +89,17 @@ def run_ffmpeg(pattern: str, outpath: str) -> None:
         raise EncoderError("ffmpeg start failed") from e
     if proc.returncode != 0:
         logger.error("ffmpeg failed with exit code: %s", proc.returncode)
-        raise EncoderError(f"ffmpeg failed with exit code: {proc.returncode}")
+        msg = f"ffmpeg failed with exit code: {proc.returncode}"
+        raise EncoderError(msg)
     logger.info("Encoding finished. Output: %s", outpath)
+
 
 def main(argv: Optional[List[str]] = None) -> int:
     """Main entry point.
-    
+
     Args:
         argv: Command-line arguments (optional).
-        
+
     Returns:
         Exit code (0 for success, non-zero for failure).
     """
@@ -106,11 +111,16 @@ def main(argv: Optional[List[str]] = None) -> int:
         if ffmpeg_exists():
             run_ffmpeg(pattern, outpath)
         else:
-            logger.warning("ffmpeg not found on PATH. Printing command to run elsewhere.")
+            logger.warning(
+                "ffmpeg not found on PATH. Printing command to run elsewhere."
+            )
             print()
             print("cd", FRAMES_DIR)
-            print(f"{FFMPEG_BIN} -framerate {FPS} -i {pattern} -c:v libvpx-vp9 -pix_fmt yuva420p -auto-alt-ref 0 {outpath}")
-            print()
+            cmd_str = (
+                f"{FFMPEG_BIN} -framerate {FPS} -i {pattern} -c:v libvpx-vp9 "
+                f"-pix_fmt yuva420p -auto-alt-ref 0 {outpath}"
+            )
+            print(cmd_str)
         return 0
     except EncoderError as e:
         logger.error("Encoding failed: %s", e)
