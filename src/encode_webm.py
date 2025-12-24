@@ -24,12 +24,14 @@ except Exception:
 
 logger = setup_logger(__name__)
 
+
 def env(name: str, default: Optional[str] = None) -> Optional[str]:
     """Read environment variable with optional default value."""
     v = os.environ.get(name, None)
     if v is None:
         return default
     return v
+
 
 FRAMES_DIR = env("FRAMES_DIR", "output/frames")
 FINAL_DIR = env("FINAL_DIR", "output/final")
