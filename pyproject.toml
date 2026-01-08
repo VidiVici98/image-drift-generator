@@ -16,7 +16,7 @@ classifiers = [
 dependencies = [
   "Pillow>=9.0.0",
   "numpy>=1.21.0",
-  "OpenSimplex==0.3",
+  "OpenSimplex==0.4.5.1",
 ]
 
 [project.urls]
