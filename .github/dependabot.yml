@@ -1,0 +1,45 @@
+# Use Dependabot Version 2 schema
+version: 2
+
+# List all update configurations
+updates:
+
+  # Python dependencies (pip/venv, requirements, or pyproject.toml)
+  - package-ecosystem: "pip"
+    directory: "/"                # Root directory (adjust if your Python code lives in a subfolder)
+    schedule:
+      interval: "weekly"          # Run weekly checks for new versions
+      time: "03:00"               # Optional: check around 3 AM UTC
+      timezone: "UTC"
+    open-pull-requests-limit: 10  # Maximum open PRs for Python updates
+    allow:
+      - dependency-type: "all"    # Update both direct and transitive deps
+    ignore:
+      # Example: ignore pre-release/alpha/beta tags for packages
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # Node.js / npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/"                # Root; adjust if your JS lives in e.g., /frontend
+    schedule:
+      interval: "weekly"
+      time: "04:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    allow:
+      - dependency-type: "all"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # Optional: GitHub Actions workflow updates
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      time: "05:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+
+# End of dependabot.yml
