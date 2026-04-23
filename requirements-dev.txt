@@ -7,7 +7,7 @@ tqdm>=4.60.0
 # Development and testing dependencies
 pytest>=7.0
 pytest-cov>=4.0
-flake8>=6.0
+flake8>=7.3.0
 pre-commit>=3.0
 black>=24.0
 isort>=5.0
